@@ -34,6 +34,19 @@ const generateToken = (user) => {
   return jwt.sign({ email: user.email }, "secretkey", { expiresIn: "1h" });
 };
 
+app.get("/verify-token", (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  jwt.verify(token, "secretkey", (err, decoded) => {
+    if (err) return res.status(401).json({ message: "Invalid token" });
+    res.json({
+      email: decoded.email,
+      subscriptions: userSubscriptions[decoded.email],
+    });
+  });
+});
+
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
