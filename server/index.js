@@ -1,7 +1,7 @@
 const express = require("express");
-const cors = require("cors");
 const http = require("http");
 const socketIo = require("socket.io");
+const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { MongoClient } = require("mongodb");
@@ -18,21 +18,7 @@ const io = socketIo(server, {
   },
 });
 
-// Allowed origin
-const allowedOrigins = ["https://stock-update-db.vercel.app"];
-
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        return callback(null, true);
-      }
-      return callback(new Error("Not allowed by CORS"), false);
-    },
-    credentials: true,
-  })
-);
-
+app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
 const uri =
@@ -66,7 +52,7 @@ app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
   await usersCollection.insertOne({ email, password: hashedPassword });
-  await subscriptionsCollection.insertOne({ email, subscriptions: [] });
+  await subscriptionsCollection.insertOne({ email, subscriptions: [] }); // Initialize empty subscriptions for new user
   res.status(201).send("User registered");
 });
 
@@ -111,7 +97,7 @@ io.use((socket, next) => {
       .filter(([ticker]) => userSubscriptionsList.includes(ticker))
       .map(([ticker, price]) => ({ ticker, price }));
 
-    socket.emit("stockPrices", [filteredPrices, userSubscriptionsList]);
+    socket.emit("stockPrices", [filteredPrices, userSubscriptionsList]); // Ensure this is correct
   };
 
   sendStockPrices();
@@ -158,9 +144,18 @@ io.use((socket, next) => {
     }
     io.emit("stockPrices", [
       Object.entries(stockPrices).map(([ticker, price]) => ({ ticker, price })),
-      [],
+      // Emit empty subscriptions array for clients not connected
+      // emit current subscriptions for connected users
+      Array.from(io.sockets.sockets.values()).map((socket) => {
+        const email = socket.user.email;
+        return subscriptionsCollection
+          .findOne({ email })
+          .then((userSubscription) =>
+            userSubscription ? userSubscription.subscriptions : []
+          );
+      }),
     ]);
-  }, 1000);
+  }, 10000);
 });
 
 server.listen(5000, () => {
