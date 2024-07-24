@@ -6,9 +6,8 @@ import "./dashboard.css";
 const Dashboard = ({ user, token, onLogout }) => {
   const [stocks, setStocks] = useState([]);
   const [subscribedStocks, setSubscribedStocks] = useState([]);
-  const [socket, setSocket] = useState(null); // Ensure socket is defined
-
-  const navigate = useNavigate(); // Ensure navigate is defined
+  const [socket, setSocket] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const newSocket = io("http://localhost:5000", {
@@ -22,6 +21,7 @@ const Dashboard = ({ user, token, onLogout }) => {
       if (Array.isArray(data) && data.length === 2) {
         const [stockPrices, userSubscriptionsList] = data;
 
+        // Check the format of stockPrices
         if (
           Array.isArray(stockPrices) &&
           stockPrices.every((item) => item.ticker && item.price)
@@ -31,7 +31,11 @@ const Dashboard = ({ user, token, onLogout }) => {
           console.error("Invalid stockPrices format:", stockPrices);
         }
 
-        if (Array.isArray(userSubscriptionsList)) {
+        // Check the format of userSubscriptionsList
+        if (
+          Array.isArray(userSubscriptionsList) &&
+          userSubscriptionsList.every((ticker) => typeof ticker === "string")
+        ) {
           setSubscribedStocks(userSubscriptionsList);
         } else {
           console.error(
@@ -50,28 +54,43 @@ const Dashboard = ({ user, token, onLogout }) => {
   }, [token]);
 
   const subscribe = (ticker) => {
-    socket.emit("subscribe", ticker);
-    setSubscribedStocks((prev) => {
-      if (!prev.includes(ticker)) {
-        return [...prev, ticker];
-      }
-      return prev;
-    });
+    console.log(`Attempting to subscribe to ${ticker}`);
+    if (socket) {
+      socket.emit("subscribe", ticker);
+      console.log("Subscription request sent for:", ticker);
+
+      setSubscribedStocks((prevSubscribedStocks) => {
+        console.log("Previous subscribedStocks:", prevSubscribedStocks);
+        if (!prevSubscribedStocks.includes(ticker)) {
+          const updatedSubscriptions = [...prevSubscribedStocks, ticker];
+          console.log("Updated subscribedStocks:", updatedSubscriptions);
+          return updatedSubscriptions;
+        }
+        return prevSubscribedStocks;
+      });
+    }
   };
 
   const unsubscribe = (ticker) => {
-    socket.emit("unsubscribe", ticker);
-    setSubscribedStocks((prev) => prev.filter((stock) => stock !== ticker));
+    console.log(`Attempting to unsubscribe from ${ticker}`);
+    if (socket) {
+      socket.emit("unsubscribe", ticker);
+      console.log("Unsubscription request sent for:", ticker);
+
+      setSubscribedStocks((prevSubscribedStocks) =>
+        prevSubscribedStocks.filter((stock) => stock !== ticker)
+      );
+    }
   };
 
   const handleLogout = () => {
-    // Ensure socket, onLogout, and navigate are used properly
+    console.log("Logging out...");
     if (socket) {
       socket.disconnect();
     }
     localStorage.removeItem("token");
-    onLogout(); // Ensure onLogout is defined and passed as a prop
-    navigate("/login"); // Ensure navigate is defined
+    onLogout();
+    navigate("/login");
   };
 
   return (
