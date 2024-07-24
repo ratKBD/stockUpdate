@@ -29,7 +29,7 @@ app.use(
 app.use(express.json());
 
 const uri =
-  "mongodb+srv://<username>:<password>@cluster0.5nbgktv.mongodb.net/test?retryWrites=true&w=majority";
+  "mongodb+srv://vratheesh123:ronaldo07@cluster0.5nbgktv.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri);
 
 client
