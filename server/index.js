@@ -1,7 +1,7 @@
 const express = require("express");
+const cors = require("cors");
 const http = require("http");
 const socketIo = require("socket.io");
-const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { MongoClient } = require("mongodb");
@@ -18,11 +18,24 @@ const io = socketIo(server, {
   },
 });
 
-app.use(cors({ origin: "*", credentials: true }));
+// Allowed origin
+const allowedOrigins = ["https://stock-update-db.vercel.app"];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"), false);
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-const uri =
-  "mongodb+srv://vratheesh123:ronaldo07@cluster0.5nbgktv.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0";
+const uri = "your-mongodb-connection-string";
 const client = new MongoClient(uri);
 let usersCollection, subscriptionsCollection;
 
@@ -52,7 +65,7 @@ app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
   await usersCollection.insertOne({ email, password: hashedPassword });
-  await subscriptionsCollection.insertOne({ email, subscriptions: [] }); // Initialize empty subscriptions for new user
+  await subscriptionsCollection.insertOne({ email, subscriptions: [] });
   res.status(201).send("User registered");
 });
 
@@ -97,7 +110,7 @@ io.use((socket, next) => {
       .filter(([ticker]) => userSubscriptionsList.includes(ticker))
       .map(([ticker, price]) => ({ ticker, price }));
 
-    socket.emit("stockPrices", [filteredPrices, userSubscriptionsList]); // Ensure this is correct
+    socket.emit("stockPrices", [filteredPrices, userSubscriptionsList]);
   };
 
   sendStockPrices();
@@ -144,18 +157,9 @@ io.use((socket, next) => {
     }
     io.emit("stockPrices", [
       Object.entries(stockPrices).map(([ticker, price]) => ({ ticker, price })),
-      // Emit empty subscriptions array for clients not connected
-      // emit current subscriptions for connected users
-      Array.from(io.sockets.sockets.values()).map((socket) => {
-        const email = socket.user.email;
-        return subscriptionsCollection
-          .findOne({ email })
-          .then((userSubscription) =>
-            userSubscription ? userSubscription.subscriptions : []
-          );
-      }),
+      [],
     ]);
-  }, 10000);
+  }, 1000);
 });
 
 server.listen(5000, () => {
