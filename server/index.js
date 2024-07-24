@@ -19,8 +19,8 @@ const io = socketIo(server, {
 app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
-const users = [];
-const userSubscriptions = {};
+const users = []; // This would typically be a database
+const userSubscriptions = {}; // This would also be stored in a database
 
 const stockPrices = {
   GOOG: 1000,
@@ -34,19 +34,6 @@ const generateToken = (user) => {
   return jwt.sign({ email: user.email }, "secretkey", { expiresIn: "1h" });
 };
 
-app.get("/verify-token", (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ message: "Unauthorized" });
-
-  jwt.verify(token, "secretkey", (err, decoded) => {
-    if (err) return res.status(401).json({ message: "Invalid token" });
-    res.json({
-      email: decoded.email,
-      subscriptions: userSubscriptions[decoded.email],
-    });
-  });
-});
-
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
@@ -54,6 +41,20 @@ app.post("/register", async (req, res) => {
   userSubscriptions[email] = []; // Initialize empty subscriptions for new user
   res.status(201).send("User registered");
 });
+
+// app.post("/login", async (req, res) => {
+//   const { email, password } = req.body;
+//   const user = users.find((u) => u.email === email);
+//   if (!user) {
+//     return res.status(400).send("User not found");
+//   }
+//   const isMatch = await bcrypt.compare(password, user.password);
+//   if (!isMatch) {
+//     return res.status(400).send("Invalid credentials");
+//   }
+//   const token = generateToken(user);
+//   res.json({ token, subscriptions: userSubscriptions[email] || [] });
+// });
 
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
@@ -80,12 +81,12 @@ io.use((socket, next) => {
     next(new Error("Authentication error"));
   }
 }).on("connection", (socket) => {
-  console.log("New client connected:", socket.user.email);
+  console.log("New client connected");
 
   const sendStockPrices = () => {
     const email = socket.user.email;
     const userSubscriptionsList = userSubscriptions[email] || [];
-    console.log("userSubscriptionsList:", userSubscriptionsList);
+    console.log("userSubscriptionsList", userSubscriptionsList);
     const filteredPrices = Object.entries(stockPrices)
       .filter(([ticker]) => userSubscriptionsList.includes(ticker))
       .map(([ticker, price]) => ({ ticker, price }));
@@ -94,6 +95,27 @@ io.use((socket, next) => {
   };
 
   sendStockPrices();
+
+  // socket.on("subscribe", (ticker) => {
+  //   const email = socket.user.email;
+  //   if (!userSubscriptions[email]) {
+  //     userSubscriptions[email] = [];
+  //   }
+  //   if (!userSubscriptions[email].includes(ticker)) {
+  //     userSubscriptions[email].push(ticker);
+  //     sendStockPrices();
+  //   }
+  // });
+
+  // socket.on("unsubscribe", (ticker) => {
+  //   const email = socket.user.email;
+  //   if (userSubscriptions[email]) {
+  //     userSubscriptions[email] = userSubscriptions[email].filter(
+  //       (item) => item !== ticker
+  //     );
+  //     sendStockPrices();
+  //   }
+  // });
 
   socket.on("subscribe", (ticker) => {
     const email = socket.user.email;
