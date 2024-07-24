@@ -1,4 +1,15 @@
 /* form.css */
+.screenCenter {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+.centered {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
 .form-container {
   width: 400px; /* Fixed width for the form container */
   margin: 20px auto;

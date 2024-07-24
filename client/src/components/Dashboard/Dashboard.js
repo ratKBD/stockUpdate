@@ -6,10 +6,12 @@ import "./dashboard.css";
 const Dashboard = ({ user, token, onLogout }) => {
   const [stocks, setStocks] = useState([]);
   const [subscribedStocks, setSubscribedStocks] = useState([]);
-  const [socket, setSocket] = useState(null);
+  const [socket, setSocket] = useState(null); // Ensure socket is defined
+
+  const navigate = useNavigate(); // Ensure navigate is defined
 
   useEffect(() => {
-    const newSocket = io("https://stock-update-db.vercel.app/", {
+    const newSocket = io("http://localhost:5000", {
       query: { token },
     });
     setSocket(newSocket);
@@ -32,10 +34,10 @@ const Dashboard = ({ user, token, onLogout }) => {
         if (Array.isArray(userSubscriptionsList)) {
           setSubscribedStocks(userSubscriptionsList);
         } else {
-          // console.error(
-          //   "Invalid userSubscriptionsList format:",
-          //   userSubscriptionsList
-          // );
+          console.error(
+            "Invalid userSubscriptionsList format:",
+            userSubscriptionsList
+          );
         }
       } else {
         console.error("Unexpected data format:", data);
@@ -62,15 +64,14 @@ const Dashboard = ({ user, token, onLogout }) => {
     setSubscribedStocks((prev) => prev.filter((stock) => stock !== ticker));
   };
 
-  const navigate = useNavigate();
-
   const handleLogout = () => {
-    localStorage.removeItem("token");
+    // Ensure socket, onLogout, and navigate are used properly
     if (socket) {
       socket.disconnect();
     }
-    onLogout();
-    navigate("/login");
+    localStorage.removeItem("token");
+    onLogout(); // Ensure onLogout is defined and passed as a prop
+    navigate("/login"); // Ensure navigate is defined
   };
 
   return (

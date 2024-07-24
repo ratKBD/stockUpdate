@@ -33,13 +33,10 @@ const Register = () => {
     }
 
     try {
-      const response = await axios.post(
-        "https://stock-update-db.vercel.app/register",
-        {
-          email,
-          password,
-        }
-      );
+      const response = await axios.post("http://localhost:5000/register", {
+        email,
+        password,
+      });
 
       if (response.status === 201) {
         setMessage("Registration successful!");
