@@ -9,7 +9,7 @@ const Dashboard = ({ user, token, onLogout }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const newSocket = io("http://localhost:5000", {
+    const newSocket = io("http://13.54.241.208:5000", {
       query: { token },
     });
     setSocket(newSocket);

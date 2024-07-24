@@ -20,7 +20,7 @@ const App = () => {
     // Retrieve token and user info from local storage on initial load
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
-      fetch("http://localhost:5000/verify-token", {
+      fetch("http://13.54.241.208:5000/verify-token", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -48,7 +48,7 @@ const App = () => {
     setUser(email);
     setToken(token);
 
-    fetch("http://localhost:5000/get-subscriptions", {
+    fetch("http://13.54.241.208:5000/get-subscriptions", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
