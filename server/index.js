@@ -42,20 +42,6 @@ app.post("/register", async (req, res) => {
   res.status(201).send("User registered");
 });
 
-// app.post("/login", async (req, res) => {
-//   const { email, password } = req.body;
-//   const user = users.find((u) => u.email === email);
-//   if (!user) {
-//     return res.status(400).send("User not found");
-//   }
-//   const isMatch = await bcrypt.compare(password, user.password);
-//   if (!isMatch) {
-//     return res.status(400).send("Invalid credentials");
-//   }
-//   const token = generateToken(user);
-//   res.json({ token, subscriptions: userSubscriptions[email] || [] });
-// });
-
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const user = users.find((u) => u.email === email);
@@ -81,12 +67,12 @@ io.use((socket, next) => {
     next(new Error("Authentication error"));
   }
 }).on("connection", (socket) => {
-  console.log("New client connected");
+  console.log("New client connected:", socket.user.email);
 
   const sendStockPrices = () => {
     const email = socket.user.email;
     const userSubscriptionsList = userSubscriptions[email] || [];
-    console.log("userSubscriptionsList", userSubscriptionsList);
+    console.log("userSubscriptionsList:", userSubscriptionsList);
     const filteredPrices = Object.entries(stockPrices)
       .filter(([ticker]) => userSubscriptionsList.includes(ticker))
       .map(([ticker, price]) => ({ ticker, price }));
@@ -95,27 +81,6 @@ io.use((socket, next) => {
   };
 
   sendStockPrices();
-
-  // socket.on("subscribe", (ticker) => {
-  //   const email = socket.user.email;
-  //   if (!userSubscriptions[email]) {
-  //     userSubscriptions[email] = [];
-  //   }
-  //   if (!userSubscriptions[email].includes(ticker)) {
-  //     userSubscriptions[email].push(ticker);
-  //     sendStockPrices();
-  //   }
-  // });
-
-  // socket.on("unsubscribe", (ticker) => {
-  //   const email = socket.user.email;
-  //   if (userSubscriptions[email]) {
-  //     userSubscriptions[email] = userSubscriptions[email].filter(
-  //       (item) => item !== ticker
-  //     );
-  //     sendStockPrices();
-  //   }
-  // });
 
   socket.on("subscribe", (ticker) => {
     const email = socket.user.email;
