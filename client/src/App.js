@@ -20,7 +20,7 @@ const App = () => {
     // Retrieve token and user info from local storage on initial load
     const storedToken = localStorage.getItem("token");
     if (storedToken) {
-      fetch("http://13.54.241.208:5000/verify-token", {
+      fetch("https://stock-update-db.vercel.app/verify-token", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -48,7 +48,7 @@ const App = () => {
     setUser(email);
     setToken(token);
 
-    fetch("http://13.54.241.208:5000/get-subscriptions", {
+    fetch("https://stock-update-db.vercel.app/stockPrices", {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -57,6 +57,7 @@ const App = () => {
     })
       .then((response) => response.json())
       .then((data) => {
+        console.log("subscriptions-->", data);
         setInitialSubscriptions(data.subscriptions || []);
       });
   };

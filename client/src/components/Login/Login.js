@@ -13,7 +13,7 @@ const Login = ({ onLogin }) => {
     setError("");
 
     try {
-      const response = await fetch("http://13.54.241.208:5000/login", {
+      const response = await fetch("https://stock-update-db.vercel.app/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

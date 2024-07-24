@@ -9,7 +9,7 @@ const Dashboard = ({ user, token, onLogout }) => {
   const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    const newSocket = io("http://13.54.241.208:5000", {
+    const newSocket = io("https://stock-update-db.vercel.app/", {
       query: { token },
     });
     setSocket(newSocket);
@@ -32,10 +32,10 @@ const Dashboard = ({ user, token, onLogout }) => {
         if (Array.isArray(userSubscriptionsList)) {
           setSubscribedStocks(userSubscriptionsList);
         } else {
-          console.error(
-            "Invalid userSubscriptionsList format:",
-            userSubscriptionsList
-          );
+          // console.error(
+          //   "Invalid userSubscriptionsList format:",
+          //   userSubscriptionsList
+          // );
         }
       } else {
         console.error("Unexpected data format:", data);
