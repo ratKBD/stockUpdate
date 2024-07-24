@@ -35,7 +35,8 @@ app.use(
 
 app.use(express.json());
 
-const uri = "your-mongodb-connection-string";
+const uri =
+  "mongodb+srv://vratheesh123:ronaldo07@cluster0.5nbgktv.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0";
 const client = new MongoClient(uri);
 let usersCollection, subscriptionsCollection;
 
