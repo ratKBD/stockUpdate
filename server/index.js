@@ -19,8 +19,8 @@ const io = socketIo(server, {
 app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
-const users = []; // This would typically be a database
-const userSubscriptions = {}; // This would also be stored in a database
+const users = [];
+const userSubscriptions = {};
 
 const stockPrices = {
   GOOG: 1000,
