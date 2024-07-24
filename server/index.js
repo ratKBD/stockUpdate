@@ -4,6 +4,8 @@ const socketIo = require("socket.io");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { MongoClient } = require("mongodb");
+require("dotenv").config();
 
 const app = express();
 const server = http.createServer(app);
@@ -19,8 +21,20 @@ const io = socketIo(server, {
 app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 
-const users = []; // This would typically be a database
-const userSubscriptions = {}; // This would also be stored in a database
+const uri =
+  "mongodb+srv://vratheesh123:ronaldo07@cluster0.5nbgktv.mongodb.net/test?retryWrites=true&w=majority&appName=Cluster0";
+const client = new MongoClient(uri);
+let usersCollection, subscriptionsCollection;
+
+client
+  .connect()
+  .then(() => {
+    const db = client.db("stock_app"); // Replace with your database name
+    usersCollection = db.collection("users");
+    subscriptionsCollection = db.collection("subscriptions");
+    console.log("Connected to MongoDB");
+  })
+  .catch((err) => console.error("Failed to connect to MongoDB", err));
 
 const stockPrices = {
   GOOG: 1000,
@@ -37,28 +51,14 @@ const generateToken = (user) => {
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
-  users.push({ email, password: hashedPassword });
-  userSubscriptions[email] = []; // Initialize empty subscriptions for new user
+  await usersCollection.insertOne({ email, password: hashedPassword });
+  await subscriptionsCollection.insertOne({ email, subscriptions: [] }); // Initialize empty subscriptions for new user
   res.status(201).send("User registered");
 });
 
-// app.post("/login", async (req, res) => {
-//   const { email, password } = req.body;
-//   const user = users.find((u) => u.email === email);
-//   if (!user) {
-//     return res.status(400).send("User not found");
-//   }
-//   const isMatch = await bcrypt.compare(password, user.password);
-//   if (!isMatch) {
-//     return res.status(400).send("Invalid credentials");
-//   }
-//   const token = generateToken(user);
-//   res.json({ token, subscriptions: userSubscriptions[email] || [] });
-// });
-
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
-  const user = users.find((u) => u.email === email);
+  const user = await usersCollection.findOne({ email });
   if (!user) {
     return res.status(400).json({ message: "User not found" });
   }
@@ -67,7 +67,11 @@ app.post("/login", async (req, res) => {
     return res.status(400).json({ message: "Invalid credentials" });
   }
   const token = generateToken(user);
-  res.json({ token, subscriptions: userSubscriptions[email] || [] });
+  const subscription = await subscriptionsCollection.findOne({ email });
+  res.json({
+    token,
+    subscriptions: subscription ? subscription.subscriptions : [],
+  });
 });
 
 io.use((socket, next) => {
@@ -83,57 +87,51 @@ io.use((socket, next) => {
 }).on("connection", (socket) => {
   console.log("New client connected");
 
-  const sendStockPrices = () => {
+  const sendStockPrices = async () => {
     const email = socket.user.email;
-    const userSubscriptionsList = userSubscriptions[email] || [];
-    console.log("userSubscriptionsList", userSubscriptionsList);
+    const userSubscription = await subscriptionsCollection.findOne({ email });
+    const userSubscriptionsList = userSubscription
+      ? userSubscription.subscriptions
+      : [];
     const filteredPrices = Object.entries(stockPrices)
       .filter(([ticker]) => userSubscriptionsList.includes(ticker))
       .map(([ticker, price]) => ({ ticker, price }));
 
-    socket.emit("stockPrices", [filteredPrices, userSubscriptionsList]);
+    socket.emit("stockPrices", [filteredPrices, userSubscriptionsList]); // Ensure this is correct
   };
 
   sendStockPrices();
 
-  // socket.on("subscribe", (ticker) => {
-  //   const email = socket.user.email;
-  //   if (!userSubscriptions[email]) {
-  //     userSubscriptions[email] = [];
-  //   }
-  //   if (!userSubscriptions[email].includes(ticker)) {
-  //     userSubscriptions[email].push(ticker);
-  //     sendStockPrices();
-  //   }
-  // });
-
-  // socket.on("unsubscribe", (ticker) => {
-  //   const email = socket.user.email;
-  //   if (userSubscriptions[email]) {
-  //     userSubscriptions[email] = userSubscriptions[email].filter(
-  //       (item) => item !== ticker
-  //     );
-  //     sendStockPrices();
-  //   }
-  // });
-
-  socket.on("subscribe", (ticker) => {
+  socket.on("subscribe", async (ticker) => {
     const email = socket.user.email;
-    if (!userSubscriptions[email]) {
-      userSubscriptions[email] = [];
-    }
-    if (!userSubscriptions[email].includes(ticker)) {
-      userSubscriptions[email].push(ticker);
+    const userSubscription = await subscriptionsCollection.findOne({ email });
+    const userSubscriptionsList = userSubscription
+      ? userSubscription.subscriptions
+      : [];
+    if (!userSubscriptionsList.includes(ticker)) {
+      userSubscriptionsList.push(ticker);
+      await subscriptionsCollection.updateOne(
+        { email },
+        { $set: { subscriptions: userSubscriptionsList } }
+      );
       console.log(`User ${email} subscribed to ${ticker}`);
       sendStockPrices();
     }
   });
 
-  socket.on("unsubscribe", (ticker) => {
+  socket.on("unsubscribe", async (ticker) => {
     const email = socket.user.email;
-    if (userSubscriptions[email]) {
-      userSubscriptions[email] = userSubscriptions[email].filter(
+    const userSubscription = await subscriptionsCollection.findOne({ email });
+    const userSubscriptionsList = userSubscription
+      ? userSubscription.subscriptions
+      : [];
+    if (userSubscriptionsList.includes(ticker)) {
+      const updatedSubscriptions = userSubscriptionsList.filter(
         (item) => item !== ticker
+      );
+      await subscriptionsCollection.updateOne(
+        { email },
+        { $set: { subscriptions: updatedSubscriptions } }
       );
       console.log(`User ${email} unsubscribed from ${ticker}`);
       sendStockPrices();
@@ -146,9 +144,18 @@ io.use((socket, next) => {
     }
     io.emit("stockPrices", [
       Object.entries(stockPrices).map(([ticker, price]) => ({ ticker, price })),
-      userSubscriptions[socket.user.email] || [],
+      // Emit empty subscriptions array for clients not connected
+      // emit current subscriptions for connected users
+      Array.from(io.sockets.sockets.values()).map((socket) => {
+        const email = socket.user.email;
+        return subscriptionsCollection
+          .findOne({ email })
+          .then((userSubscription) =>
+            userSubscription ? userSubscription.subscriptions : []
+          );
+      }),
     ]);
-  }, 1000);
+  }, 10000);
 });
 
 server.listen(5000, () => {
